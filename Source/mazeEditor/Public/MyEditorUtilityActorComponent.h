@@ -3,13 +3,15 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Components/ActorComponent.h"
 #include "EditorUtilityWidget.h"
+#include "RoomActor.h"
 #include "MyEditorUtilityActorComponent.generated.h"
 
 /**
  * 
  */
-UCLASS()
+UCLASS(ClassGroup = (Custom), meta = (BlueprintSpawnableComponent))
 class MAZEEDITOR_API UMyEditorUtilityActorComponent : public UEditorUtilityWidget
 {
 	GENERATED_BODY()
@@ -17,5 +19,8 @@ class MAZEEDITOR_API UMyEditorUtilityActorComponent : public UEditorUtilityWidge
 public:
     // Blueprint node that prints "Hello"
     UFUNCTION(BlueprintCallable, Category = "Test")
-    void PrintHello();
+    void CreateRoomBlueprints(TArray<UObject*> TargetRooms, const FString& SavePath);
+
+private:
+    void ProcessTargetRoom(UObject* TargetRoom);
 };
