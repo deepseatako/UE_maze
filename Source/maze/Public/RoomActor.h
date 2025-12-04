@@ -11,19 +11,21 @@ struct FExitMeshData
 {
     GENERATED_BODY()
 
-
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Exit")
     FTransform WallTransform = FTransform::Identity;
-
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Exit")
     UStaticMesh* WallMesh = nullptr;
-
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Exit")
+    TArray<UMaterialInterface*> WallMaterials;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Exit")
     FTransform HoleTransform = FTransform::Identity;
-
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Exit")
     UStaticMesh* HoleMesh = nullptr;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Exit")
+    TArray<UMaterialInterface*> HoleMaterials;
+
+
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Exit")
     FTransform SocketTransform = FTransform::Identity;
@@ -32,6 +34,7 @@ struct FExitMeshData
     bool bUsed = false;
 };
 
+// ---------- 房间类 ----------
 UCLASS()
 class MAZE_API ARoomActor : public AActor
 {
@@ -42,24 +45,16 @@ public:
     ARoomActor();
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
-    USceneComponent* SceneRoot;
+    UStaticMeshComponent* RoomRootMesh;
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
     UStaticMeshComponent* RoomColliderMesh;
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite)
-    TArray<UActorComponent*> Components;
-
-
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Room")
     TArray<FExitMeshData> Exits;
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Room")
-    float test;
-
-
 #if WITH_EDITOR
 private:
-    void AutoGenerateExitsInEditor();
+    virtual void OnConstruction(const FTransform& Transform) override;
 #endif
 };

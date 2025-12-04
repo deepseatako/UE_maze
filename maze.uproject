@@ -18,7 +18,8 @@
 			"Type": "Editor",
 			"LoadingPhase": "Default",
 			"AdditionalDependencies": [
-				"Blutility"
+				"Blutility",
+				"Engine"
 			]
 		}
 	],

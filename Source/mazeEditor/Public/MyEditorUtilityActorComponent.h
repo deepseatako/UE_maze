@@ -22,5 +22,13 @@ public:
     void CreateRoomBlueprints(TArray<UObject*> TargetRooms, const FString& SavePath);
 
 private:
-    void ProcessTargetRoom(UObject* TargetRoom);
+    void ProcessTargetRoom(UObject* TargetRoom, const FString& SavePath);
+    void AddComponentToActorMap(UActorComponent* Component, UStaticMeshComponent*& RoomRootMeshComp, TMap<FString, FExitMeshData>& ExitMap);
+    FString GetRootComponentName(UBlueprintGeneratedClass* BPGC);
+    UBlueprint* CreateRoomBlueprintAsset(const FString& AssetName, const FString& SavePath, UClass* ParentClass);
+    FString SanitizePackageName(const FString& InPath);
+    FString MakeUniqueAssetName(const FString& BaseName, UPackage* Package);
+    FString GetComponentSuffix(const FString& Name);
+    void BackupOldAsset(UBlueprint* OldBP, const FString& SavePath, const FString& AssetName);
+    bool ValidateExitMap(const TMap<FString, FExitMeshData>& ExitMap);
 };

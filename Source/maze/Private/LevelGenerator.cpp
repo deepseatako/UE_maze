@@ -164,7 +164,7 @@ void ALevelGenerator::CleanupAfterGeneration()
         }
     }
 
-    Destroy();
+    //Destroy();
 }
 
 // --------------------
