@@ -101,19 +101,20 @@ void AMazeBuilderActor::AttachRoomByExit(ARoomActor* PrevRoom, ARoomActor* NewRo
     // ---------- 计算 Actor 世界变换 ----------
 
     // 上一个房间出口的世界变换
-    FTransform PrevExitWorld = PrevRoom->RoomRootMesh->GetComponentTransform() * PrevExit->SocketTransform;
+    FTransform PrevExitWorld = PrevRoom->RoomRootMesh->GetComponentTransform() * PrevExit->HoleTransform;
 
     // 新房间出口的世界变换（初始位置）
-    FTransform NewExitWorld = NewRoom->RoomRootMesh->GetComponentTransform() * NewExit->SocketTransform;
+    FTransform NewExitWorld = NewRoom->RoomRootMesh->GetComponentTransform() * NewExit->HoleTransform;
 
     // 计算需要的偏移
     FVector DeltaLocation = PrevExitWorld.GetLocation() - NewExitWorld.GetLocation();
     FQuat DeltaRotation = PrevExitWorld.GetRotation() * NewExitWorld.GetRotation().Inverse();
 
-    // 移动新房间 Actor（只移动实例，不改组件）
+    // 移动新房间 Actor
     NewRoom->AddActorWorldOffset(DeltaLocation);
     NewRoom->AddActorWorldRotation(DeltaRotation);
 }
+
 
 
 // =======================================================

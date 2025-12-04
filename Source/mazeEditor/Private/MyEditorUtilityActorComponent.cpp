@@ -154,6 +154,13 @@ void UMyEditorUtilityActorComponent::AddComponentToActorMap(
                 *Name
             );
         }
+        else if (Name.StartsWith(TEXT("DoorSnapPoint")))
+        {
+            FExitMeshData& Exit = ExitMap.FindOrAdd(Suffix);
+            Exit.SocketTransform = MeshComp->GetRelativeTransform();
+
+            UE_LOG(LogTemp, Warning, TEXT("Added Socket: %s, Suffix: %s"), *Name, *Suffix);
+        }
         else if (Name.StartsWith(TEXT("Wall")))
         {
             FExitMeshData& Exit = ExitMap.FindOrAdd(Suffix);
@@ -184,16 +191,6 @@ void UMyEditorUtilityActorComponent::AddComponentToActorMap(
             }
 
             UE_LOG(LogTemp, Warning, TEXT("Added Door Mesh: %s, Suffix: %s"), *Name, *Suffix);
-        }
-    }
-    else if (USceneComponent* SceneComp = Cast<USceneComponent>(Component))
-    {
-        if (Name.StartsWith(TEXT("DoorSnapPoint")))
-        {
-            FExitMeshData& Exit = ExitMap.FindOrAdd(Suffix);
-            Exit.SocketTransform = SceneComp->GetRelativeTransform();
-
-            UE_LOG(LogTemp, Warning, TEXT("Added Socket: %s, Suffix: %s"), *Name, *Suffix);
         }
     }
 }
