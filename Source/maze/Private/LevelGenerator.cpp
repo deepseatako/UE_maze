@@ -15,6 +15,12 @@ ALevelGenerator::ALevelGenerator()
     PrimaryActorTick.bCanEverTick = false;
 }
 
+void ALevelGenerator::BeginPlay()
+{
+    Super::BeginPlay();
+    GenerateLevel();
+}
+
 // --------------------
 // Pick random room from choices
 // --------------------
@@ -30,15 +36,49 @@ TSubclassOf<ARoomActor> ALevelGenerator::PickRandomRoom(const TArray<TSubclassOf
 // --------------------
 // Align Room to socket
 // --------------------
-void ALevelGenerator::AlignRoom(ARoomActor* NewRoom, const FTransform& NewRoomSocket, const FTransform& PrevRoomSocket)
-{
-    FVector PrevForward = PrevRoomSocket.GetRotation().GetForwardVector() * -1.0f;
-    FVector NewForward = NewRoomSocket.GetRotation().GetForwardVector();
-    FQuat DeltaQuat = FQuat::FindBetweenNormals(NewForward, PrevForward);
-    NewRoom->AddActorWorldRotation(DeltaQuat);
 
-    FVector DeltaLocation = PrevRoomSocket.GetLocation() - NewRoomSocket.GetLocation();
-    NewRoom->AddActorWorldOffset(DeltaLocation);
+void ALevelGenerator::AlignRoom(ARoomActor* PrevRoom, ARoomActor* NewRoom, FExitMeshData& PrevExit, FExitMeshData& NewExit)
+{
+    if (!PrevRoom || !NewRoom) return;
+
+    //--------------------------------------------------------------------
+    // Step 1：得到两个 socket 的世界变换
+    //--------------------------------------------------------------------
+    const FTransform PrevExitWorld = GetSocketWorld(PrevRoom, PrevExit.SocketTransform);
+    const FTransform NewExitWorld = GetSocketWorld(NewRoom, NewExit.SocketTransform);
+
+    //--------------------------------------------------------------------
+    // Step 2：计算 NewRoom 需要的世界旋转（让出口对准）
+    //--------------------------------------------------------------------
+    // PrevExit forward（世界方向）
+    const FVector PrevForward = PrevExitWorld.GetRotation().GetForwardVector();
+    const FVector NewForward = NewExitWorld.GetRotation().GetForwardVector();
+
+    // NewExit.forward → -PrevExit.forward
+    const FQuat RotDelta = FQuat::FindBetween(NewForward, -PrevForward);
+
+    //--------------------------------------------------------------------
+    // Step 3：旋转 NewRoom（仅旋转，不改位置）
+    //--------------------------------------------------------------------
+    FTransform Target = NewRoom->GetActorTransform();
+    Target.ConcatenateRotation(RotDelta);
+
+    //--------------------------------------------------------------------
+    // Step 4：再次计算“旋转后”的 NewExit 世界位置
+    //--------------------------------------------------------------------
+    const FVector NewExitPos_Rotated =
+        Target.TransformPosition(NewExit.SocketTransform.GetLocation());
+
+    //--------------------------------------------------------------------
+    // Step 5：平移，使两个 socket 的位置相等
+    //--------------------------------------------------------------------
+    const FVector Delta = PrevExitWorld.GetLocation() - NewExitPos_Rotated;
+    Target.AddToTranslation(Delta);
+
+    //--------------------------------------------------------------------
+    // Step 6：设置最终变换
+    //--------------------------------------------------------------------
+    NewRoom->SetActorTransform(Target);
 }
 
 
@@ -66,25 +106,24 @@ bool ALevelGenerator::TryPlaceRoom(TSubclassOf<ARoomActor> RoomClass, ARoomActor
     for (int32 iPrev : PrevIndices)
     {
         FExitMeshData& PrevExit = PrevRoom->Exits[iPrev];
-        if (PrevExit.bUsed || PrevExit.SocketTransform.Equals(FTransform::Identity)) continue;
+        if (PrevExit.bUsed) continue;
 
         for (int32 iNew : NewIndices)
         {
             FExitMeshData& NewExit = NewRoom->Exits[iNew];
-            if (NewExit.bUsed || NewExit.SocketTransform.Equals(FTransform::Identity)) continue;
+            if (NewExit.bUsed) continue;
 
-            AlignRoom(NewRoom, NewExit.SocketTransform, PrevExit.SocketTransform);
+            AlignRoom(PrevRoom, NewRoom, PrevExit, NewExit);
 
-            if (!IsRoomOverlapping(NewRoom))
-            {
+            // 可选：启用重叠检测
+            //if (IsRoomOverlapping(NewRoom)) continue;
                 // 标记出口已使用
-                PrevExit.bUsed = true;
-                NewExit.bUsed = true;
+            PrevExit.bUsed = true;
+            NewExit.bUsed = true;
 
-                PlacedRooms.Add(NewRoom);
-                OutNewRoom = NewRoom;
-                return true;
-            }
+            PlacedRooms.Add(NewRoom);
+            OutNewRoom = NewRoom;
+            return true;
         }
     }
 
@@ -199,4 +238,9 @@ bool ALevelGenerator::IsRoomOverlapping(const ARoomActor* NewRoom)
     }
 
     return false;
+}
+
+FTransform ALevelGenerator::GetSocketWorld(const AActor* Room, const FTransform& SocketLocal)
+{
+    return SocketLocal * Room->GetActorTransform();
 }

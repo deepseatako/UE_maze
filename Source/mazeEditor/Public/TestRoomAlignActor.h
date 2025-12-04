@@ -24,6 +24,15 @@ public:
     UPROPERTY(EditAnywhere, Category = "Test")
     TSubclassOf<ARoomActor> RoomClass2;
 
+    // 要测试的两个房间类型
+    UPROPERTY(EditAnywhere, Category = "Test")
+    int RoomClass1ExitInt = 0;
+
+    UPROPERTY(EditAnywhere, Category = "Test")
+    int RoomClass2ExitInt = 0;
+
 private:
     void AttachRoomByExit(ARoomActor* PrevRoom, ARoomActor* NewRoom);
+    FTransform GetSocketWorld(const AActor* Room, const FTransform& SocketLocal);
+    void BuildExitMeshes(ARoomActor* Room);
 };

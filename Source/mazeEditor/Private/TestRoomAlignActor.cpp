@@ -24,31 +24,101 @@ void ATestRoomAlignActor::BeginPlay()
     // ---------- 对齐房间 ----------
     AttachRoomByExit(Room1, Room2);
 
+    // 生成门
+
     UE_LOG(LogTemp, Log, TEXT("TestRoomAlignActor: Two rooms spawned and aligned."));
 }
 
-// ---------- 使用前面修正版的对齐方法 ----------
 void ATestRoomAlignActor::AttachRoomByExit(ARoomActor* PrevRoom, ARoomActor* NewRoom)
 {
     if (!PrevRoom || !NewRoom) return;
-    if (PrevRoom->Exits.Num() == 0 || NewRoom->Exits.Num() == 0) return;
 
-    // 使用第一个出口测试
-    FExitMeshData& PrevExit = PrevRoom->Exits[0];
-    FExitMeshData& NewExit = NewRoom->Exits[0];
+    FExitMeshData& PrevExit = PrevRoom->Exits[RoomClass1ExitInt];
+    FExitMeshData& NewExit = NewRoom->Exits[RoomClass2ExitInt];
 
     PrevExit.bUsed = true;
     NewExit.bUsed = true;
 
-    if (!PrevRoom->RoomRootMesh || !NewRoom->RoomRootMesh) return;
+    //--------------------------------------------------------------------
+    // Step 1：得到两个 socket 的世界变换
+    //--------------------------------------------------------------------
+    const FTransform PrevExitWorld = GetSocketWorld(PrevRoom, PrevExit.SocketTransform);
+    const FTransform NewExitWorld = GetSocketWorld(NewRoom, NewExit.SocketTransform);
 
-    // ---------- 核心对齐 ----------
-    FTransform PrevExitWorld = PrevRoom->RoomRootMesh->GetComponentTransform() * PrevExit.HoleTransform;
-    FTransform NewExitLocal = NewExit.HoleTransform;
+    //--------------------------------------------------------------------
+    // Step 2：计算 NewRoom 需要的世界旋转（让出口对准）
+    //--------------------------------------------------------------------
+    // PrevExit forward（世界方向）
+    const FVector PrevForward = PrevExitWorld.GetRotation().GetForwardVector();
+    const FVector NewForward = NewExitWorld.GetRotation().GetForwardVector();
 
-    FTransform NewRoomWorldTransform = PrevExitWorld * NewExitLocal.Inverse();
+    // NewExit.forward → -PrevExit.forward
+    const FQuat RotDelta = FQuat::FindBetween(NewForward, -PrevForward);
 
-    NewRoom->SetActorTransform(NewRoomWorldTransform);
+    //--------------------------------------------------------------------
+    // Step 3：旋转 NewRoom（仅旋转，不改位置）
+    //--------------------------------------------------------------------
+    FTransform Target = NewRoom->GetActorTransform();
+    Target.ConcatenateRotation(RotDelta);
 
-    UE_LOG(LogTemp, Log, TEXT("Room2 aligned to Room1"));
+    //--------------------------------------------------------------------
+    // Step 4：再次计算“旋转后”的 NewExit 世界位置
+    //--------------------------------------------------------------------
+    const FVector NewExitPos_Rotated =
+        Target.TransformPosition(NewExit.SocketTransform.GetLocation());
+
+    //--------------------------------------------------------------------
+    // Step 5：平移，使两个 socket 的位置相等
+    //--------------------------------------------------------------------
+    const FVector Delta = PrevExitWorld.GetLocation() - NewExitPos_Rotated;
+    Target.AddToTranslation(Delta);
+
+    //--------------------------------------------------------------------
+    // Step 6：设置最终变换
+    //--------------------------------------------------------------------
+    NewRoom->SetActorTransform(Target);
+
+    //--------------------------------------------------------------------
+    // Step 7：生成出口 mesh
+    //--------------------------------------------------------------------
+    BuildExitMeshes(PrevRoom);
+    BuildExitMeshes(NewRoom);
+}
+
+
+FTransform ATestRoomAlignActor::GetSocketWorld(const AActor* Room, const FTransform& SocketLocal)
+{
+    return SocketLocal * Room->GetActorTransform();
+}
+
+
+void ATestRoomAlignActor::BuildExitMeshes(ARoomActor* Room)
+{
+    if (!Room) return;
+
+    for (FExitMeshData& ExitData : Room->Exits)
+    {
+        UStaticMeshComponent* MeshComp = NewObject<UStaticMeshComponent>(Room);
+        MeshComp->RegisterComponent();
+        MeshComp->AttachToComponent(Room->RoomRootMesh, FAttachmentTransformRules::KeepRelativeTransform);
+
+        if (ExitData.bUsed)
+        {
+            // --- 洞口 ---
+            MeshComp->SetRelativeTransform(ExitData.HoleTransform);
+            MeshComp->SetStaticMesh(ExitData.HoleMesh);
+
+            for (int i = 0; i < ExitData.HoleMaterials.Num(); i++)
+                MeshComp->SetMaterial(i, ExitData.HoleMaterials[i]);
+        }
+        else
+        {
+            // --- 墙 ---
+            MeshComp->SetRelativeTransform(ExitData.WallTransform);
+            MeshComp->SetStaticMesh(ExitData.WallMesh);
+
+            for (int i = 0; i < ExitData.WallMaterials.Num(); i++)
+                MeshComp->SetMaterial(i, ExitData.WallMaterials[i]);
+        }
+    }
 }

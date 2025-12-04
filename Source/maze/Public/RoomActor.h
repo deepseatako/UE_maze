@@ -54,7 +54,12 @@ public:
     TArray<FExitMeshData> Exits;
 
 #if WITH_EDITOR
-private:
-    virtual void OnConstruction(const FTransform& Transform) override;
+    virtual bool ShouldTickIfViewportsOnly() const override
+    {
+        return true;
+    }
+
+    protected:
+        virtual void Tick(float DeltaTime) override;
 #endif
 };

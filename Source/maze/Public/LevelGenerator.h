@@ -5,6 +5,7 @@
 #include "LevelGenerator.generated.h"
 
 class ARoomActor;
+struct FExitMeshData;
 class UArrowComponent;
 
 USTRUCT(BlueprintType)
@@ -33,12 +34,15 @@ public:
     UFUNCTION(CallInEditor, Category = "Level Generation")
     void GenerateLevel();
 
+protected:
+    virtual void BeginPlay() override;
 private:
     TArray<ARoomActor*> PlacedRooms;
 
     bool TryPlaceRoom(TSubclassOf<ARoomActor> RoomClass, ARoomActor* PrevRoom, ARoomActor*& OutNewRoom);
     void CleanupAfterGeneration();
-    void AlignRoom(ARoomActor* NewRoom, const FTransform& NewRoomSocket, const FTransform& PrevRoomSocket);
     bool IsRoomOverlapping(const ARoomActor* NewRoom);
     TSubclassOf<ARoomActor> PickRandomRoom(const TArray<TSubclassOf<ARoomActor>>& Choices);
+    void AlignRoom(ARoomActor* PrevRoom, ARoomActor* NewRoom, FExitMeshData& PrevExit, FExitMeshData& NewExit);
+    FTransform GetSocketWorld(const AActor* Room, const FTransform& SocketLocal);
 };
