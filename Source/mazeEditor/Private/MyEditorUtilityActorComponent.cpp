@@ -59,11 +59,12 @@ void UMyEditorUtilityActorComponent::ProcessTargetRoom(UObject* TargetRoom, cons
     // exitmap
     TMap<FString, FExitMeshData> ExitMap;
     UStaticMeshComponent* TempRoomRootComp = nullptr;
+    UStaticMeshComponent* TempColliComp = nullptr;
 
     for (USCS_Node* Node : BPGC->SimpleConstructionScript->GetAllNodes())
     {
         UActorComponent* Template = Node->GetActualComponentTemplate(BPGC);
-        AddComponentToActorMap(Template, TempRoomRootComp, ExitMap);
+        AddComponentToActorMap(Template, TempRoomRootComp, TempColliComp, ExitMap);
     }
 
     UE_LOG(LogTemp, Warning, TEXT("Built ExitMap with %d entries"), ExitMap.Num());
@@ -114,11 +115,15 @@ void UMyEditorUtilityActorComponent::ProcessTargetRoom(UObject* TargetRoom, cons
     // 蓝图写入 RoomRoot
     CDO->RoomRootMesh->SetStaticMesh(TempRoomRootComp->GetStaticMesh());
     CDO->RoomRootMesh->SetRelativeTransform(TempRoomRootComp->GetRelativeTransform());
-    int MatCount = TempRoomRootComp->GetNumMaterials();
-    for (int i = 0; i < MatCount; i++)
+    int RootMatCount = TempRoomRootComp->GetNumMaterials();
+    for (int i = 0; i < RootMatCount; i++)
     {
         CDO->RoomRootMesh->SetMaterial(i, TempRoomRootComp->GetMaterial(i));
     }
+
+    // 蓝图写入 Colli
+    CDO->RoomColliderMesh->SetStaticMesh(TempColliComp->GetStaticMesh());
+    CDO->RoomColliderMesh->SetRelativeTransform(TempColliComp->GetRelativeTransform());
 
     // 蓝图写入 Exits 数组
     CDO->Exits = ExitValues;
@@ -136,6 +141,7 @@ void UMyEditorUtilityActorComponent::ProcessTargetRoom(UObject* TargetRoom, cons
 void UMyEditorUtilityActorComponent::AddComponentToActorMap(
     UActorComponent* Component,
     UStaticMeshComponent*& RoomRootMeshComp,
+    UStaticMeshComponent*& RoomColliderMesh,
     TMap<FString, FExitMeshData>& ExitMap)
 {
     if (!Component) return;
@@ -153,6 +159,12 @@ void UMyEditorUtilityActorComponent::AddComponentToActorMap(
                 TEXT("[RoomRoot] Found Room Mesh Component: %s"),
                 *Name
             );
+        }
+        else if (Name.StartsWith(TEXT("Colli")))
+        {
+
+            RoomColliderMesh = MeshComp;
+            UE_LOG(LogTemp, Warning, TEXT("[Colli] Found Room Mesh Component: %s"), *Name);
         }
         else if (Name.StartsWith(TEXT("DoorSnapPoint")))
         {

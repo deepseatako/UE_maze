@@ -23,7 +23,7 @@ public:
 
 private:
     void ProcessTargetRoom(UObject* TargetRoom, const FString& SavePath);
-    void AddComponentToActorMap(UActorComponent* Component, UStaticMeshComponent*& RoomRootMeshComp, TMap<FString, FExitMeshData>& ExitMap);
+    void AddComponentToActorMap(UActorComponent* Component, UStaticMeshComponent*& RoomRootMeshComp, UStaticMeshComponent*& RoomColliderMesh, TMap<FString, FExitMeshData>& ExitMap);
     FString GetRootComponentName(UBlueprintGeneratedClass* BPGC);
     UBlueprint* CreateRoomBlueprintAsset(const FString& AssetName, const FString& SavePath, UClass* ParentClass);
     FString SanitizePackageName(const FString& InPath);
