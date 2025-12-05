@@ -6,7 +6,6 @@
 #include "Components/ArrowComponent.h"
 #include "Components/PrimitiveComponent.h"
 #include "Algo/RandomShuffle.h"
-#include "DoorActor.h"
 
 // --------------------
 // Constructor
@@ -133,7 +132,7 @@ bool ALevelGenerator::TryPlaceRoom(TSubclassOf<ARoomActor> RoomClass, ARoomActor
 
             PlacedRooms.Add(NewRoom);
             OutNewRoom = NewRoom;
-            //PlaceDoorBetween(PrevRoom, NewRoom, PrevExit, NewExit);
+            PlaceDoorBetween(PrevRoom, NewRoom, PrevExit, NewExit);
             return true;
         }
     }
@@ -326,8 +325,7 @@ void ALevelGenerator::PlaceDoorBetween(
     const FVector MidPoint = (P0 + P1) * 0.5f;
 
     // -------- 3. 朝向 --------
-    const FVector Dir = (P1 - P0).GetSafeNormal();
-    const FRotator Rot = Dir.Rotation();
+    const FRotator Rot = PrevWorld.GetRotation().Rotator();
 
     // -------- 4. 创建门 --------
     AActor* Door = World->SpawnActor<AActor>(DoorClass, MidPoint, Rot);
