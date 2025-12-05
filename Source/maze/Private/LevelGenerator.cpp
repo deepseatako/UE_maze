@@ -6,6 +6,7 @@
 #include "Components/ArrowComponent.h"
 #include "Components/PrimitiveComponent.h"
 #include "Algo/RandomShuffle.h"
+#include "DoorActor.h"
 
 // --------------------
 // Constructor
@@ -18,7 +19,13 @@ ALevelGenerator::ALevelGenerator()
 void ALevelGenerator::BeginPlay()
 {
     Super::BeginPlay();
-    GenerateLevel();
+    RegenerateLevel();
+    CleanupAfterGeneration();
+    for (ARoomActor* Room : PlacedRooms)
+    {
+        BuildExitMeshes(Room);
+        //UE_LOG(LogTemp, Warning, TEXT("BuildExitMeshes() 被调用"));
+    }
 }
 
 // --------------------
@@ -115,14 +122,18 @@ bool ALevelGenerator::TryPlaceRoom(TSubclassOf<ARoomActor> RoomClass, ARoomActor
 
             AlignRoom(PrevRoom, NewRoom, PrevExit, NewExit);
 
-            // 可选：启用重叠检测
-            //if (IsRoomOverlapping(NewRoom)) continue;
-                // 标记出口已使用
+            // 重叠检测
+            if (IsRoomOverlapping(NewRoom))
+            {
+                UE_LOG(LogTemp, Warning, TEXT("Overlapping"));
+                continue;
+            }
             PrevExit.bUsed = true;
             NewExit.bUsed = true;
 
             PlacedRooms.Add(NewRoom);
             OutNewRoom = NewRoom;
+            //PlaceDoorBetween(PrevRoom, NewRoom, PrevExit, NewExit);
             return true;
         }
     }
@@ -132,63 +143,79 @@ bool ALevelGenerator::TryPlaceRoom(TSubclassOf<ARoomActor> RoomClass, ARoomActor
 }
 
 
+void ALevelGenerator::RegenerateLevel()
+{
+    for (int32 Attempt = 1; Attempt <= MaxAttempts; Attempt++)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("=== Level Generation Attempt %d ==="), Attempt);
+
+        bool bSuccess = GenerateLevelOnce();
+
+        if (bSuccess)
+        {
+            UE_LOG(LogTemp, Log, TEXT("Level generated successfully."));
+            return;
+        }
+
+        // 清理失败时已经生成的房间
+        for (ARoomActor* Room : PlacedRooms)
+        {
+            if (Room)
+                Room->Destroy();
+        }
+    }
+
+    UE_LOG(LogTemp, Error, TEXT("All attempts failed. Level generation aborted."));
+}
+
+
 // --------------------
 // Main generation loop
 // --------------------
-void ALevelGenerator::GenerateLevel()
+bool ALevelGenerator::GenerateLevelOnce()
 {
     PlacedRooms.Empty();
 
     UWorld* World = GetWorld();
-    if (!World)
-    {
-        UE_LOG(LogTemp, Warning, TEXT("World is null."));
-        return;
-    }
+    if (!World) return false;
 
     if (RoomChoices.Num() == 0)
     {
         UE_LOG(LogTemp, Warning, TEXT("No RoomChoices defined."));
-        return;
+        return false;
     }
 
-    // ---------- 生成第一间房 ----------
+    // ---------- 生成第一个房间 ----------
     TSubclassOf<ARoomActor> FirstRoomClass = PickRandomRoom(RoomChoices[0].RoomCandidates);
-    if (!FirstRoomClass) return;
+    if (!FirstRoomClass) return false;
 
-    FActorSpawnParameters Params;
-    ARoomActor* PrevRoom = World->SpawnActor<ARoomActor>(FirstRoomClass, GetActorLocation(), GetActorRotation(), Params);
-    if (!PrevRoom) return;
+    ARoomActor* PrevRoom = World->SpawnActor<ARoomActor>(FirstRoomClass, GetActorLocation(), GetActorRotation());
+    if (!PrevRoom) return false;
 
     PlacedRooms.Add(PrevRoom);
 
-    // ---------- 从第二步开始生成 ----------
+    // ---------- 后续房间 ----------
     for (int32 Step = 1; Step < RoomChoices.Num(); Step++)
     {
-        const TArray<TSubclassOf<ARoomActor>>& Choices = RoomChoices[Step].RoomCandidates;
+        const auto& Choices = RoomChoices[Step].RoomCandidates;
         TSubclassOf<ARoomActor> RoomClass = PickRandomRoom(Choices);
         if (!RoomClass) continue;
 
         ARoomActor* NewRoom = nullptr;
-        bool bPlaced = false;
-
-        for (int32 i = 0; i < MaxAttempts && !bPlaced; i++)
-        {
-            bPlaced = TryPlaceRoom(RoomClass, PrevRoom, NewRoom);
-        }
+        bool bPlaced = TryPlaceRoom(RoomClass, PrevRoom, NewRoom);
 
         if (!bPlaced)
         {
-            UE_LOG(LogTemp, Warning, TEXT("Failed to place room at step %d after %d attempts"), Step, MaxAttempts);
-            break;
+            UE_LOG(LogTemp, Warning, TEXT("Failed to place room at Step %d"), Step);
+            return false;
         }
 
         PrevRoom = NewRoom;
     }
 
-    UE_LOG(LogTemp, Log, TEXT("Level generation finished. Rooms: %d"), PlacedRooms.Num());
-    CleanupAfterGeneration();
+    return true;
 }
+
 
 // --------------------
 // Cleanup colliders and self-destruct
@@ -244,3 +271,71 @@ FTransform ALevelGenerator::GetSocketWorld(const AActor* Room, const FTransform&
 {
     return SocketLocal * Room->GetActorTransform();
 }
+
+void ALevelGenerator::BuildExitMeshes(ARoomActor* Room)
+{
+    if (!Room) return;
+
+    for (FExitMeshData& ExitData : Room->Exits)
+    {
+        UStaticMeshComponent* MeshComp = NewObject<UStaticMeshComponent>(Room);
+        MeshComp->RegisterComponent();
+        MeshComp->AttachToComponent(Room->RoomRootMesh, FAttachmentTransformRules::KeepRelativeTransform);
+
+        if (ExitData.bUsed)
+        {
+            // --- 洞口 ---
+            MeshComp->SetRelativeTransform(ExitData.HoleTransform);
+            MeshComp->SetStaticMesh(ExitData.HoleMesh);
+
+            for (int i = 0; i < ExitData.HoleMaterials.Num(); i++)
+                MeshComp->SetMaterial(i, ExitData.HoleMaterials[i]);
+        }
+        else
+        {
+            // --- 墙 ---
+            MeshComp->SetRelativeTransform(ExitData.WallTransform);
+            MeshComp->SetStaticMesh(ExitData.WallMesh);
+
+            for (int i = 0; i < ExitData.WallMaterials.Num(); i++)
+                MeshComp->SetMaterial(i, ExitData.WallMaterials[i]);
+        }
+    }
+}
+
+void ALevelGenerator::PlaceDoorBetween(
+    ARoomActor* PrevRoom,
+    ARoomActor* NewRoom,
+    const FExitMeshData& PrevExit,
+    const FExitMeshData& NewExit
+)
+{
+    if (!PrevRoom || !NewRoom || !DoorClass) return;
+
+    UWorld* World = GetWorld();
+    if (!World) return;
+
+    // -------- 1. 出口世界变换 --------
+    const FTransform PrevWorld = GetSocketWorld(PrevRoom, PrevExit.SocketTransform);
+    const FTransform NewWorld = GetSocketWorld(NewRoom, NewExit.SocketTransform);
+
+    const FVector P0 = PrevWorld.GetLocation();
+    const FVector P1 = NewWorld.GetLocation();
+
+    // -------- 2. 中点 --------
+    const FVector MidPoint = (P0 + P1) * 0.5f;
+
+    // -------- 3. 朝向 --------
+    const FVector Dir = (P1 - P0).GetSafeNormal();
+    const FRotator Rot = Dir.Rotation();
+
+    // -------- 4. 创建门 --------
+    AActor* Door = World->SpawnActor<AActor>(DoorClass, MidPoint, Rot);
+
+    if (!Door)
+    {
+        UE_LOG(LogTemp, Error, TEXT("Failed to spawn Door!"));
+        return;
+    }
+}
+

@@ -38,6 +38,7 @@ void AMazeBuilderActor::BeginPlay()
     for (ARoomActor* Room : SpawnedRooms)
     {
         BuildExitMeshes(Room);
+        UE_LOG(LogTemp, Warning, TEXT("BuildExitMeshes() 被调用"));
     }
 }
 

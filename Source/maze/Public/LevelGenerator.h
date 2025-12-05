@@ -31,8 +31,9 @@ public:
     UPROPERTY(EditAnywhere, Category = "Level Generation")
     int32 MaxAttempts = 100;
 
-    UFUNCTION(CallInEditor, Category = "Level Generation")
-    void GenerateLevel();
+    UPROPERTY(EditAnywhere, Category = "Door")
+    TSubclassOf<AActor> DoorClass;
+
 
 protected:
     virtual void BeginPlay() override;
@@ -40,9 +41,13 @@ private:
     TArray<ARoomActor*> PlacedRooms;
 
     bool TryPlaceRoom(TSubclassOf<ARoomActor> RoomClass, ARoomActor* PrevRoom, ARoomActor*& OutNewRoom);
+    void RegenerateLevel();
+    bool GenerateLevelOnce();
     void CleanupAfterGeneration();
     bool IsRoomOverlapping(const ARoomActor* NewRoom);
     TSubclassOf<ARoomActor> PickRandomRoom(const TArray<TSubclassOf<ARoomActor>>& Choices);
     void AlignRoom(ARoomActor* PrevRoom, ARoomActor* NewRoom, FExitMeshData& PrevExit, FExitMeshData& NewExit);
     FTransform GetSocketWorld(const AActor* Room, const FTransform& SocketLocal);
+    void BuildExitMeshes(ARoomActor* Room);
+    void PlaceDoorBetween(ARoomActor* PrevRoom, ARoomActor* NewRoom, const FExitMeshData& PrevExit, const FExitMeshData& NewExit);
 };
