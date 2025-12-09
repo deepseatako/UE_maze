@@ -150,6 +150,16 @@ void UMyEditorUtilityActorComponent::AddComponentToActorMap(
     FString Suffix = GetComponentSuffix(Name);
 
     // ---------- 处理出口 ----------
+    if (USceneComponent* SceneComp = Cast<USceneComponent>(Component)) {
+
+        if (Name.StartsWith(TEXT("DoorSnapPoint")))
+        {
+            FExitMeshData& Exit = ExitMap.FindOrAdd(Suffix);
+            Exit.SocketTransform = SceneComp->GetRelativeTransform();
+
+            UE_LOG(LogTemp, Warning, TEXT("Added Socket: %s, Suffix: %s"), *Name, *Suffix);
+        }
+    }
     if (UStaticMeshComponent* MeshComp = Cast<UStaticMeshComponent>(Component))
     {
         if (Name.StartsWith(TEXT("Room"))) {
@@ -165,13 +175,6 @@ void UMyEditorUtilityActorComponent::AddComponentToActorMap(
 
             RoomColliderMesh = MeshComp;
             UE_LOG(LogTemp, Warning, TEXT("[Colli] Found Room Mesh Component: %s"), *Name);
-        }
-        else if (Name.StartsWith(TEXT("DoorSnapPoint")))
-        {
-            FExitMeshData& Exit = ExitMap.FindOrAdd(Suffix);
-            Exit.SocketTransform = MeshComp->GetRelativeTransform();
-
-            UE_LOG(LogTemp, Warning, TEXT("Added Socket: %s, Suffix: %s"), *Name, *Suffix);
         }
         else if (Name.StartsWith(TEXT("Wall")))
         {
