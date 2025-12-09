@@ -26,6 +26,45 @@ ARoomActor::ARoomActor()
 
 }
 
+void ARoomActor::SpawnAllFurnitures()
+{
+    if (Furnitures.Num() == 0) return;
+
+    UWorld* World = GetWorld();
+    if (!World) return;
+
+    FTransform RoomTransform = GetActorTransform();
+
+    for (const FFurnitureData& FurnitureData : Furnitures)
+    {
+        if (!FurnitureData.Blueprint.IsValid()) continue;
+
+        UClass* FurnitureClass = FurnitureData.Blueprint.LoadSynchronous();
+        if (!FurnitureClass) continue;
+
+        FVector SpawnLocation = RoomTransform.TransformPosition(FurnitureData.Transform.GetLocation());
+        FRotator SpawnRotation = (FurnitureData.Transform.GetRotation() * RoomTransform.GetRotation()).Rotator();
+        FVector SpawnScale = FurnitureData.Transform.GetScale3D() * RoomTransform.GetScale3D();
+
+        FActorSpawnParameters SpawnParams;
+        SpawnParams.Owner = this;
+        SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
+
+        AActor* SpawnedFurniture = World->SpawnActor<AActor>(
+            FurnitureClass,
+            SpawnLocation,
+            SpawnRotation,
+            SpawnParams
+        );
+
+        if (SpawnedFurniture)
+        {
+            SpawnedFurniture->SetActorScale3D(SpawnScale);
+        }
+    }
+}
+
+
 #if WITH_EDITOR
 void ARoomActor::Tick(float DeltaTime)
 {
@@ -34,7 +73,7 @@ void ARoomActor::Tick(float DeltaTime)
     UWorld* World = GetWorld();
     if (!World) return;
 
-    // 给不同出口准备几种颜色（可自由扩展）
+    // ---------- 绘制出口箭头 ----------
     static const TArray<FColor> Colors = {
         FColor::Red,
         FColor::Green,
@@ -51,13 +90,11 @@ void ARoomActor::Tick(float DeltaTime)
     {
         const FExitMeshData& Data = Exits[i];
 
-        // 转世界空间
         const FTransform WorldTransform = Data.SocketTransform * GetActorTransform();
         const FVector Pos = WorldTransform.GetLocation();
         const FVector Forward = WorldTransform.GetRotation().GetForwardVector();
         const FVector End = Pos + Forward * 50.f;
 
-        // 取颜色（如果出口超过颜色数量就循环用）
         const FColor& ArrowColor = Colors[i % Colors.Num()];
 
         DrawDebugDirectionalArrow(
@@ -66,14 +103,38 @@ void ARoomActor::Tick(float DeltaTime)
             End,
             30.f,
             ArrowColor,
-            false,  // 每帧绘制，不需要 persistent
+            false,
             -1.f,
             0,
             2.5f
         );
     }
-}
 
+    // ---------- 绘制 Furnitures ----------
+    for (int32 i = 0; i < Furnitures.Num(); i++)
+    {
+        const FFurnitureData& Furniture = Furnitures[i];
+
+        // 转到世界坐标
+        const FTransform WorldTransform = Furniture.Transform * GetActorTransform();
+        const FVector Pos = WorldTransform.GetLocation();
+        const FVector Forward = WorldTransform.GetRotation().GetForwardVector();
+        const FVector End = Pos + Forward * 5.f; // 箭头长度，可根据需要调整
+
+        // 可用红色表示家具
+        DrawDebugDirectionalArrow(
+            World,
+            Pos,
+            End,
+            20.f,          // 箭头大小
+            FColor::Red,   // 箭头颜色
+            false,         // 不持久
+            -1.f,          // 持续时间
+            0,
+            2.0f           // 线条粗细
+        );
+    }
+}
 #endif
 
 

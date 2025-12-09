@@ -23,6 +23,7 @@ void ALevelGenerator::BeginPlay()
     for (ARoomActor* Room : PlacedRooms)
     {
         BuildExitMeshes(Room);
+        Room->SpawnAllFurnitures();
         //UE_LOG(LogTemp, Warning, TEXT("BuildExitMeshes() 被调用"));
     }
 }

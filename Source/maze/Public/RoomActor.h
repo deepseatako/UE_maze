@@ -34,6 +34,18 @@ struct FExitMeshData
     bool bUsed = false;
 };
 
+USTRUCT(BlueprintType)
+struct FFurnitureData
+{
+    GENERATED_BODY()
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Furniture")
+    FTransform Transform = FTransform::Identity;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Furniture")
+    TSoftClassPtr<AActor> Blueprint;
+};
+
 // ---------- 房间类 ----------
 UCLASS()
 class MAZE_API ARoomActor : public AActor
@@ -52,6 +64,11 @@ public:
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Room")
     TArray<FExitMeshData> Exits;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Room")
+    TArray<FFurnitureData> Furnitures;
+
+    void SpawnAllFurnitures();
 
 #if WITH_EDITOR
     virtual bool ShouldTickIfViewportsOnly() const override
